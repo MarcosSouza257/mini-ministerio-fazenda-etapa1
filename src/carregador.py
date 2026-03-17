@@ -103,10 +103,13 @@ def get_valor(df, coluna_filtro, conta_pattern, soma_pattern=None):
 
 def get_valor_liquido(df, conta_pattern):
     """
-    Calcula receita líquida = Brutas − FUNDEB − Transferências Constitucionais.
+    Calcula receita líquida = Brutas − FUNDEB − Transferências Constitucionais
+    − Outras Deduções da Receita.
 
-    Metodologia padrão FINBRA/SICONFI. Exclui 'Outras Deduções da Receita'
-    (introduzida em 2022) para manter série histórica consistente.
+    A coluna 'Outras Deduções da Receita' foi introduzida em 2022 pela STN para
+    registrar a renúncia fiscal decorrente da isenção de ICMS sobre combustíveis
+    (Lei Complementar 194/2022). Para anos anteriores a 2022 o valor é zero,
+    portanto a subtração não afeta a série histórica.
 
     Parâmetros
     ----------
@@ -122,4 +125,5 @@ def get_valor_liquido(df, conta_pattern):
     brutas = get_valor(df, 'Receitas Brutas Realizadas', conta_pattern)
     fundeb = get_valor(df, 'Deduções - FUNDEB', conta_pattern)
     transf = get_valor(df, 'Deduções - Transferências Constitucionais', conta_pattern)
-    return brutas - fundeb - transf
+    outras = get_valor(df, 'Outras Deduções da Receita', conta_pattern)
+    return brutas - fundeb - transf - outras
