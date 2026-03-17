@@ -1,0 +1,11 @@
+# Arquivos de contexto local
+.claude/
+.hf/
+__pycache__/
+*.pyc
+
+# Arquivos de instrução/entrega (não versionados)
+*.mhtml
+
+# Subpasta de validação temporária
+output/Planilhas e Graficos (falta validar)/
