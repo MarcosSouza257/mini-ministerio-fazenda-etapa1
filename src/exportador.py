@@ -198,25 +198,58 @@ def exportar_excel(dem1_estado, dem1_capital, dem2_estado, dem2_capital):
     return excel_path
 
 
-def exportar_base_dados_csv():
+def exportar_base_dados_csv(filtro_uf='MS'):
     """
-    Extrai os arquivos FINBRA (base_dados/*.zip) e salva cada um como CSV
-    em UTF-8 (separador ';') dentro de output/base_dados_csv/.
+    Consolida os arquivos FINBRA (base_dados/*.zip) em 4 CSVs filtrados por UF,
+    um por combinação de escopo (ESTDF/CAP) e tabela (Receitas/Despesas),
+    com todos os anos empilhados e coluna 'Ano' adicionada.
 
-    Os 3 primeiros registros de cada ZIP são metadados do STN e são descartados;
-    os dados tabulares começam na 4ª linha do finbra.csv interno.
+    Saída em output/base_dados_csv/:
+        base_ESTDF_Receitas_MS.csv
+        base_ESTDF_Despesas_MS.csv
+        base_CAP_Receitas_MS.csv
+        base_CAP_Despesas_MS.csv
+
+    Parâmetros
+    ----------
+    filtro_uf : str
+        Sigla da UF para filtrar (padrão 'MS').
 
     Retorna
     -------
-    list[str] : caminhos dos arquivos CSV gerados.
+    list[str] : caminhos dos 4 arquivos CSV gerados.
     """
     dest = os.path.join(OUTPUT_DIR, 'base_dados_csv')
     os.makedirs(dest, exist_ok=True)
 
-    caminhos = []
+    grupos = {
+        ('ESTDF', 'Receitas'): [],
+        ('ESTDF', 'Despesas'): [],
+        ('CAP',   'Receitas'): [],
+        ('CAP',   'Despesas'): [],
+    }
+
     for nome_zip in sorted(os.listdir(DATA_DIR)):
         if not nome_zip.endswith('.zip'):
             continue
+
+        # Identifica escopo e tabela pelo nome do arquivo
+        if 'ESTDF' in nome_zip:
+            escopo = 'ESTDF'
+        elif 'CAP' in nome_zip:
+            escopo = 'CAP'
+        else:
+            continue
+
+        if 'Receitas' in nome_zip:
+            tabela = 'Receitas'
+        elif 'Despesas' in nome_zip:
+            tabela = 'Despesas'
+        else:
+            continue
+
+        # Extrai ano do nome (últimos 4 dígitos antes de .zip)
+        ano = int(nome_zip[-8:-4])
 
         caminho_zip = os.path.join(DATA_DIR, nome_zip)
         with zipfile.ZipFile(caminho_zip) as z:
@@ -234,9 +267,27 @@ def exportar_base_dados_csv():
             quotechar='"'
         )
 
-        nome_csv = nome_zip.replace('.zip', '.csv')
-        path = os.path.join(dest, nome_csv)
-        df.to_csv(path, index=False, encoding='utf-8-sig', sep=';')
+        # Filtra UF e adiciona coluna Ano
+        col_uf = [c for c in df.columns if c.strip().upper() == 'UF']
+        if col_uf:
+            df = df[df[col_uf[0]].str.strip() == filtro_uf].copy()
+        df.insert(0, 'Ano', str(ano))
+
+        grupos[(escopo, tabela)].append(df)
+
+    caminhos = []
+    nomes = {
+        ('ESTDF', 'Receitas'): f'base_ESTDF_Receitas_{filtro_uf}.csv',
+        ('ESTDF', 'Despesas'): f'base_ESTDF_Despesas_{filtro_uf}.csv',
+        ('CAP',   'Receitas'): f'base_CAP_Receitas_{filtro_uf}.csv',
+        ('CAP',   'Despesas'): f'base_CAP_Despesas_{filtro_uf}.csv',
+    }
+    for chave, frames in grupos.items():
+        if not frames:
+            continue
+        df_consolidado = pd.concat(frames, ignore_index=True)
+        path = os.path.join(dest, nomes[chave])
+        df_consolidado.to_csv(path, index=False, encoding='utf-8-sig', sep=';')
         caminhos.append(path)
 
     return caminhos
