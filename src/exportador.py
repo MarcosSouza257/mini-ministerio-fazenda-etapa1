@@ -2,9 +2,11 @@
 Exportação dos demonstrativos para Excel (formatado) e CSV.
 """
 
+import io
 import os
+import zipfile
 import pandas as pd
-from .config import ANOS, OUTPUT_DIR
+from .config import ANOS, DATA_DIR, OUTPUT_DIR
 
 
 def escrever_planilha_formatada(writer, df, nome_aba, titulo, subtitulo=''):
@@ -194,6 +196,50 @@ def exportar_excel(dem1_estado, dem1_capital, dem2_estado, dem2_capital):
         )
 
     return excel_path
+
+
+def exportar_base_dados_csv():
+    """
+    Extrai os arquivos FINBRA (base_dados/*.zip) e salva cada um como CSV
+    em UTF-8 (separador ';') dentro de output/base_dados_csv/.
+
+    Os 3 primeiros registros de cada ZIP são metadados do STN e são descartados;
+    os dados tabulares começam na 4ª linha do finbra.csv interno.
+
+    Retorna
+    -------
+    list[str] : caminhos dos arquivos CSV gerados.
+    """
+    dest = os.path.join(OUTPUT_DIR, 'base_dados_csv')
+    os.makedirs(dest, exist_ok=True)
+
+    caminhos = []
+    for nome_zip in sorted(os.listdir(DATA_DIR)):
+        if not nome_zip.endswith('.zip'):
+            continue
+
+        caminho_zip = os.path.join(DATA_DIR, nome_zip)
+        with zipfile.ZipFile(caminho_zip) as z:
+            with z.open('finbra.csv') as f:
+                content = f.read().decode('latin-1')
+
+        lines = content.split('\n')
+        header = lines[3].strip()
+        data_lines = [header] + [l.strip() for l in lines[4:] if l.strip()]
+
+        df = pd.read_csv(
+            io.StringIO('\n'.join(data_lines)),
+            sep=';',
+            dtype=str,
+            quotechar='"'
+        )
+
+        nome_csv = nome_zip.replace('.zip', '.csv')
+        path = os.path.join(dest, nome_csv)
+        df.to_csv(path, index=False, encoding='utf-8-sig', sep=';')
+        caminhos.append(path)
+
+    return caminhos
 
 
 def exportar_csv(dem1_estado, dem1_capital, dem2_estado, dem2_capital):

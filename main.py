@@ -16,7 +16,7 @@ from src.demonstrativos import (
     build_demonstrativo1_capital,
     build_demonstrativo2,
 )
-from src.exportador import exportar_excel, exportar_csv
+from src.exportador import exportar_excel, exportar_csv, exportar_base_dados_csv
 from src.graficos import gerar_todos
 
 
@@ -61,6 +61,9 @@ def main():
     csv_paths = exportar_csv(dem1_estado, dem1_capital, dem2_estado, dem2_capital)
     for p in csv_paths:
         print(f"  CSV:   {p}")
+
+    base_csv_paths = exportar_base_dados_csv()
+    print(f"  Base de dados: {len(base_csv_paths)} arquivos CSV em output/base_dados_csv/")
 
     # ----------------------------------------------------------------
     # 4. Gerar gráficos
